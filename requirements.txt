@@ -1,0 +1,4 @@
+# MainyDB requirements
+python>=3.10
+Pillow>=9.0.0  # For image processing in examples
+cryptography>=3.0 # For encryption/decryption of .mdb files
