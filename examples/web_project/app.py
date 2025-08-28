@@ -8,14 +8,14 @@ db = MainyDB(DATABASE_FILE)
 
 @app.route('/')
 def index():
-    items = db.get_all()
+    items = db.get_database("my_database").get_collection("items").find().to_list()
     return render_template('index.html', items=items)
 
 @app.route('/add', methods=['POST'])
 def add_item():
-    key = request.form['key']
-    value = request.form['value']
-    db.set(key, value)
+    item_name = request.form.get('item_name')
+    if item_name:
+        db.get_database("my_database").get_collection("items").insert_one({'name': item_name})
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
