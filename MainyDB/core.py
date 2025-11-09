@@ -133,6 +133,11 @@ class Collection:
             'documents': self.documents,
             'indexes': self.indexes
         }
+        # In single-file mode, persist the entire DB to the .mdb file
+        if getattr(self.database.db, 'single_file_mode', False):
+            self.database.db._save_single_file()
+            return
+        # Otherwise, persist the collection as its own .collection file
         if async_write:
             self.database.db.writer.write(self.file_path, data)
         else:
@@ -426,6 +431,12 @@ class Collection:
             return result
     def drop(self):
         with self.lock:
+            if getattr(self.database.db, 'single_file_mode', False):
+                # Only clear in-memory and resave the single file
+                self.documents = []
+                self.indexes = {}
+                self.database.db._save_single_file()
+                return True
             if os.path.exists(self.file_path):
                 os.remove(self.file_path)
             self.documents = []
@@ -433,6 +444,12 @@ class Collection:
             return True
     def rename(self, new_name):
         with self.lock:
+            if getattr(self.database.db, 'single_file_mode', False):
+                # Rename only in-memory and resave the single file
+                self.database.collections[new_name] = self.database.collections.pop(self.name)
+                self.name = new_name
+                self.database.db._save_single_file()
+                return True
             old_path = self.file_path
             new_path = os.path.join(os.path.dirname(old_path), f"{new_name}.collection")
             if os.path.exists(old_path):
@@ -505,10 +522,15 @@ class Database:
         self.name = name
         self.collections = {}
         self.path = os.path.join(self.db.path, self.name)
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        # In single-file mode non creare directory per database
+        if not getattr(self.db, 'single_file_mode', False):
+            if not os.path.exists(self.path):
+                os.makedirs(self.path)
         self._load_collections()
     def _load_collections(self):
+        # In single-file mode, collections are loaded by MainyDB._load_single_file
+        if getattr(self.db, 'single_file_mode', False):
+            return
         if os.path.exists(self.path):
             for filename in os.listdir(self.path):
                 if filename.endswith('.collection'):
@@ -521,11 +543,16 @@ class Database:
         file_path = os.path.join(self.path, f"{name}.collection")
         collection = Collection(self, name, file_path, options)
         self.collections[name] = collection
+        # Persist immediately in single-file mode so the .mdb exists/updates
+        if getattr(self.db, 'single_file_mode', False):
+            self.db._save_single_file()
         return collection
     def drop_collection(self, name):
         if name in self.collections:
             self.collections[name].drop()
             del self.collections[name]
+            if getattr(self.db, 'single_file_mode', False):
+                self.db._save_single_file()
             return True
         return False
     def list_collection_names(self):
@@ -544,14 +571,15 @@ class MainyDB:
     def __init__(self, path=None, pymongo_compatible=False):
         if path is None:
             path = os.path.join(os.getcwd(), 'mainydb.mdb')
-        if os.path.isfile(path) or not os.path.exists(path) and not path.endswith('/'):
+        # Sempre modalità single-file: se è directory, usa <dir>/mainydb.mdb; altrimenti usa il file dato
+        if os.path.isdir(path):
             self.single_file_mode = True
-            self.path = os.path.dirname(path)
-            self.db_file = path
-        else:
-            self.single_file_mode = False
             self.path = path
-            self.db_file = None
+            self.db_file = os.path.join(path, 'mainydb.mdb')
+        else:
+            self.single_file_mode = True
+            self.path = os.path.dirname(path) or os.getcwd()
+            self.db_file = path
         if not os.path.exists(self.path) and self.path:
             os.makedirs(self.path)
         self.pymongo_compatible = pymongo_compatible
@@ -566,9 +594,7 @@ class MainyDB:
         if os.path.exists(self.db_file):
             try:
                 with open(self.db_file, 'rb') as f:
-                    encrypted_data = f.read()
-                    decrypted_data = self.fernet.decrypt(encrypted_data)
-                    data = pickle.loads(decrypted_data)
+                    data = pickle.load(f)
                     for db_name, collections in data.items():
                         db = Database(self, db_name)
                         for coll_name, coll_data in collections.items():
@@ -604,6 +630,9 @@ class MainyDB:
         if name not in self.databases:
             db = Database(self, name)
             self.databases[name] = db
+            if self.single_file_mode:
+                # Ensure the .mdb file is created/updated when a new DB is added
+                self._save_single_file()
             return db
         return self.databases[name]
     def drop_database(self, name):
