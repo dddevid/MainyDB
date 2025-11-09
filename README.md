@@ -20,7 +20,7 @@ MainyDB is an ultra-fast, embedded MongoDB-like database in a single `.mdb` file
 pip install MainyDB
 ```
 
-La libreria è disponibile anche su PyPI: https://pypi.org/project/MainyDB/
+The Library is also available on PyPI: https://pypi.org/project/MainyDB/
 
 
 ```bash
@@ -218,18 +218,18 @@ with open("retrieved_image.jpg", "wb") as f:
 
 ### Direct Image Upload (file path)
 
-- Puoi caricare immagini passando direttamente una stringa di percorso file; MainyDB legge il file, lo salva in base64 e alla lettura restituisce `bytes`.
-- Estensioni supportate: `.png`, `.jpg`, `.jpeg`, `.webp`, `.tiff`, `.heic`, `.gif`.
+- You can upload images by passing a file path string directly; MainyDB reads the file, stores it as base64, and returns `bytes` on read.
+- Supported extensions: `.png`, `.jpg`, `.jpeg`, `.webp`, `.tiff`, `.heic`, `.gif`.
 
 ```python
-# Insert da percorso file (l'immagine viene memorizzata come base64 internamente)
+# Insert from file path (the image is stored as base64 internally)
 images = db.myapp.images
 res = images.insert_one({
     "name": "logo",
-    "image": "./assets/logo.png"  # percorso verso un file immagine esistente
+    "image": "./assets/logo.png"  # path to an existing image file
 })
 
-# Lettura: vengono restituiti bytes (non una stringa base64)
+# Read: returns raw bytes (not a base64 string)
 logo_doc = images.find_one({"name": "logo"})
 logo_bytes = logo_doc["image"]
 with open("retrieved_logo.png", "wb") as f:

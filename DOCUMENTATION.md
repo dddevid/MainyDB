@@ -529,58 +529,58 @@ with open("retrieved_image.jpg", "wb") as f:
     f.write(image_data)
 ```
 
-### Supporto Immagini
+### Image Support
 
-MainyDB supporta l'upload e la lettura di immagini nei formati: `.png`, `.jpg`, `.jpeg`, `.webp`, `.tiff`, `.heic`, `.gif`. I dati binari vengono salvati come base64 e decodificati automaticamente in lettura.
+MainyDB supports uploading and reading images in the following formats: `.png`, `.jpg`, `.jpeg`, `.webp`, `.tiff`, `.heic`, `.gif`. Binary data is stored as base64 and automatically decoded on read.
 
-### Upload diretto di immagini (percorso file)
+### Direct Image Upload (file path)
 
-Oltre ai bytes, puoi inserire il percorso del file immagine direttamente nel documento. In inserimento/aggiornamento MainyDB legge il file, lo converte in base64 e lo memorizza.
+Beyond raw bytes, you can insert the image file path directly in the document. On insert/update, MainyDB reads the file, converts it to base64, and stores it.
 
 ```python
-# Inserimento tramite percorso file (upload diretto)
+# Insert via file path (direct upload)
 images = db.my_app.images
 
 doc = {
     "_id": "sample1",
     "filename": "avatar.png",
-    "image": "./assets/avatar.png"  # percorso del file immagine
+    "image": "./assets/avatar.png"  # image file path
 }
 
 images.insert_one(doc)
 
-# Lettura: find_one decodifica subito in bytes
+# Read: find_one immediately returns bytes
 stored = images.find_one({"_id": "sample1"})
-img_bytes = stored["image"]  # bytes dell'immagine
+img_bytes = stored["image"]  # image bytes
 
 with open("avatar_copy.png", "wb") as f:
     f.write(img_bytes)
 
-# Lettura: find restituisce decoder lazy per i campi media
+# Read: find returns a lazy decoder for media fields
 cur = images.find({"_id": "sample1"})
 item = next(iter(cur))
-decoder = item["image"]  # funzione da chiamare per ottenere i bytes
+decoder = item["image"]  # call to obtain bytes
 img_bytes_lazy = decoder()
 ```
 
-### Comportamento di lettura: `find` vs `find_one`
+### Read behavior: `find` vs `find_one`
 
-- `find_one` ritorna direttamente i bytes per i campi media.
-- `find` ritorna una funzione decoder per i campi media (lazy) da chiamare quando servono i bytes, per ridurre overhead di decodifica su grandi dataset.
+- `find_one` returns bytes directly for media fields.
+- `find` returns a decoder function for media fields (lazy), to reduce decoding overhead on large datasets.
 
-### Update e media
+### Update and media
 
-Le operazioni `update_one` e `update_many` applicano automaticamente la codifica media:
+`update_one` and `update_many` automatically apply media encoding:
 
 ```python
-# Aggiornare con bytes
-new_bytes = b"\x89PNG..."  # bytes dell'immagine
+# Update with bytes
+new_bytes = b"\x89PNG..."  # image bytes
 images.update_one({"_id": "sample1"}, {"$set": {"image": new_bytes}})
 
-# Aggiornare con percorso file
+# Update with file path
 images.update_many({"filename": {"$eq": "avatar.png"}}, {"$set": {"image": "./assets/avatar.webp"}})
 
-# Verifica lettura
+# Read verification
 updated = images.find_one({"_id": "sample1"})
 assert isinstance(updated["image"], (bytes, bytearray))
 ```
