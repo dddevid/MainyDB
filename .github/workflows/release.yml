@@ -1,0 +1,90 @@
+name: Publish to PyPI and GitHub Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build, publish and release
+    if: contains(github.event.head_commit.message, 'new_version:')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Extract version and release notes from commit message
+        id: extract
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          VERSION=$(printf "%s" "$COMMIT_MSG" | sed -n 's/.*new_version:[[:space:]]*\(v[0-9][0-9\.]*\).*/\1/p' | head -n1)
+          if [ -z "$VERSION" ]; then
+            echo "No version marker found in commit message." >&2
+            exit 1
+          fi
+          NOTES=$(printf "%s" "$COMMIT_MSG" | sed -n '1!p')
+          RELEASE_BODY="$NOTES\n\nFull Changelog: https://github.com/${{ github.repository }}/commits/$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          printf "release_body<<EOF\n%s\nEOF\n" "$RELEASE_BODY" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package version matches commit version
+        run: |
+          PKG_VERSION=$(python - <<'PY'
+import configparser
+c = configparser.ConfigParser()
+c.read('setup.cfg')
+print(c['metadata']['version'])
+PY
+          )
+          COMMIT_VERSION="${{ steps.extract.outputs.version }}"
+          STRIPPED="${COMMIT_VERSION#v}"
+          echo "Package version: $PKG_VERSION"
+          echo "Commit version: $STRIPPED"
+          if [ "$PKG_VERSION" != "$STRIPPED" ]; then
+            echo "Version mismatch: setup.cfg=$PKG_VERSION commit=$STRIPPED" >&2
+            exit 1
+          fi
+
+      - name: Build package
+        run: |
+          python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python -m twine upload --non-interactive --skip-existing dist/*
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ steps.extract.outputs.version }}"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.extract.outputs.version }}
+          release_name: MainyDB ${{ steps.extract.outputs.version }}
+          body: ${{ steps.extract.outputs.release_body }}
+          draft: false
+          prerelease: false
