@@ -10,7 +10,8 @@ def run_large_insert(num_docs: int = 20000, batch_size: int = 1000):
     - batch_size: dimensione dei batch per insert_many
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        db = MainyDB(path=tmpdir)["stress_large"]
+        mainy = MainyDB(path=tmpdir)
+        db = mainy["stress_large"]
         coll = db["items"]
         start = time.perf_counter()
         remaining = num_docs
@@ -33,5 +34,6 @@ def run_large_insert(num_docs: int = 20000, batch_size: int = 1000):
         print(f"[large_insert] inserted={inserted} count={count} duration={dur:.2f}s ops/s={inserted/dur:.0f}")
         assert count == num_docs, f"Conteggio errato: atteso {num_docs}, ottenuto {count}"
         assert inserted == num_docs, f"Insert errato: atteso {num_docs}, ottenuto {inserted}"
+        mainy.close()
 if __name__ == "__main__":
     run_large_insert()

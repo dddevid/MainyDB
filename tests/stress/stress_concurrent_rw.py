@@ -35,7 +35,8 @@ def run_concurrent_rw(duration_sec: int = 5, writers: int = 8, readers: int = 8)
     Stress test di concorrenza R/W su una singola collection per N secondi.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        db = MainyDB(path=tmpdir)["stress_concurrent"]
+        mainy = MainyDB(path=tmpdir)
+        db = mainy["stress_concurrent"]
         coll = db["items"]
         counters = {"insert": 0, "update": 0, "read": 0, "errors": []}
         stop_event = threading.Event()
@@ -59,5 +60,6 @@ def run_concurrent_rw(duration_sec: int = 5, writers: int = 8, readers: int = 8)
         )
         assert not counters["errors"], f"Errori riscontrati: {counters['errors']}"
         assert total_docs >= counters["insert"], "Conteggio documenti inferiore agli insert registrati"
+        mainy.close()
 if __name__ == "__main__":
     run_concurrent_rw()
