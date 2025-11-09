@@ -19,7 +19,6 @@ def run_index_stress(num_docs: int = 15000):
             for _ in range(num_docs)
         ]
         coll.insert_many(payload)
-        # Usa tuple (campo, direzione) per compatibilità con versioni precedenti
         idx1 = coll.create_index([("country", 1)])
         idx2 = coll.create_index([("country", 1), ("age", 1)])
         start = time.perf_counter()

@@ -27,8 +27,9 @@ def main():
             print(f"Script stress mancante: {script}, salto.")
             continue
         print(f"\n=== Eseguo stress: {script} ===")
-        # Imposta cwd alla root del progetto per importare il pacchetto locale
-        proc = subprocess.run([sys.executable, path], cwd=ROOT)
+        env = os.environ.copy()
+        env['PYTHONPATH'] = ROOT + (os.pathsep + env['PYTHONPATH'] if 'PYTHONPATH' in env and env['PYTHONPATH'] else '')
+        proc = subprocess.run([sys.executable, path], cwd=ROOT, env=env)
         if proc.returncode != 0:
             ok = False
 

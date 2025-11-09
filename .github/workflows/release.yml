@@ -43,13 +43,7 @@ jobs:
 
       - name: Verify package version matches commit version
         run: |
-          PKG_VERSION=$(python - <<'PY'
-import configparser
-c = configparser.ConfigParser()
-c.read('setup.cfg')
-print(c['metadata']['version'])
-PY
-          )
+          PKG_VERSION=$(python -c "import configparser; c=configparser.ConfigParser(); c.read('setup.cfg'); print(c['metadata']['version'])")
           COMMIT_VERSION="${{ steps.extract.outputs.version }}"
           STRIPPED="${COMMIT_VERSION#v}"
           echo "Package version: $PKG_VERSION"
