@@ -1,0 +1,1 @@
+"""Test unitari per MainyDB (API principali, senza stress)."""

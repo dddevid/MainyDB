@@ -248,9 +248,28 @@ See the `examples` directory for more detailed examples:
 - `basic_usage.py`: Basic CRUD operations
 - `advanced_usage.py`: Advanced queries, aggregations, and concurrency
 
-## License
+## Stress Test
 
-MIT
+Sono disponibili script di stresstest nella cartella `tests/stress`. Ogni script è eseguibile direttamente:
+
+```bash
+# Inserimenti massivi e throughput
+python tests/stress/stress_large_insert.py
+
+# Concorrenza lettura/scrittura con più thread
+python tests/stress/stress_concurrent_rw.py
+
+# Mix di operazioni CRUD, proiezioni, skip/limit e aggregazioni
+python tests/stress/stress_mixed_operations.py
+
+# Stress su indici (singoli e compositi) e query mirate
+python tests/stress/stress_indexing.py
+```
+
+Note:
+- Gli script usano un database temporaneo e non modificano file esistenti.
+- Gli output stampano riassunti (tempo, operazioni/secondo, conteggi) e includono assert per la correttezza di base.
+- Esegui gli script dalla radice del progetto (`e:\Progetti\MainyDB`).
 
 ## Author
 

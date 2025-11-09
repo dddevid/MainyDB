@@ -229,8 +229,26 @@ class Collection:
     
     def create_index(self, keys, **kwargs):
         with self.lock:
-            index_name = '_'.join([f"{k}_{d}" for k, d in keys])
-            self.indexes[index_name] = build_index(self.documents, keys)
+            # Support both [(key, direction), ...] and [key, ...]
+            normalized_keys = []
+            index_name = None
+
+            if isinstance(keys, list):
+                if keys and all(isinstance(item, tuple) and len(item) == 2 for item in keys):
+                    # Tuples provided: (field, direction)
+                    normalized_keys = [k for k, _ in keys]
+                    index_name = '_'.join([f"{k}_{d}" for k, d in keys])
+                else:
+                    # Assume list of field names
+                    normalized_keys = list(keys)
+                    index_name = '_'.join([f"{k}_1" for k in normalized_keys])
+            elif isinstance(keys, str):
+                normalized_keys = [keys]
+                index_name = f"{keys}_1"
+            else:
+                raise TypeError("keys must be a list of fields or list of (field, direction) tuples or a string field name")
+
+            self.indexes[index_name] = build_index(self.documents, normalized_keys)
             self._save_data()
             return index_name
     
