@@ -272,26 +272,26 @@ See the `examples` directory for more detailed examples:
 
 ## Stress Test
 
-Sono disponibili script di stresstest nella cartella `tests/stress`. Ogni script è eseguibile direttamente:
+Stress test scripts are available under `tests/stress`. Each script can be run directly:
 
 ```bash
-# Inserimenti massivi e throughput
+# Massive inserts and throughput
 python tests/stress/stress_large_insert.py
 
-# Concorrenza lettura/scrittura con più thread
+# Concurrent read/write with multiple threads
 python tests/stress/stress_concurrent_rw.py
 
-# Mix di operazioni CRUD, proiezioni, skip/limit e aggregazioni
+# Mixed CRUD operations, projections, skip/limit, and aggregations
 python tests/stress/stress_mixed_operations.py
 
-# Stress su indici (singoli e compositi) e query mirate
+# Index stress (single and composite) and targeted queries
 python tests/stress/stress_indexing.py
 ```
 
-Note:
-- Gli script usano un database temporaneo e non modificano file esistenti.
-- Gli output stampano riassunti (tempo, operazioni/secondo, conteggi) e includono assert per la correttezza di base.
-- Esegui gli script dalla radice del progetto (`e:\Progetti\MainyDB`).
+Notes:
+- The scripts use a temporary database and do not modify existing files.
+- Outputs include summaries (time, ops/sec, counts) and basic correctness asserts.
+- Run the scripts from the project root (`e:\Progetti\MainyDB`).
 
 ## Author
 
