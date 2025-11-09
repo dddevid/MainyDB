@@ -3,7 +3,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 setup(
     name="MainyDB",
-    version="1.0.2",
+    version="1.0.3",
     author="devid",
     author_email="devidrru@gmail.com",
     description="A lightweight, embedded MongoDB-like database in a single file",
