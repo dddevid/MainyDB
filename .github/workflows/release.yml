@@ -82,13 +82,15 @@ jobs:
           git tag -a "$VERSION" -m "Release $VERSION"
           git push origin "$VERSION"
 
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.VERSION }}
-          release_name: MainyDB ${{ env.VERSION }}
+          name: MainyDB ${{ env.VERSION }}
           body: ${{ env.RELEASE_BODY }}
           draft: false
           prerelease: false
+          files: |
+            dist/*
