@@ -11,7 +11,6 @@ import asyncio
 import concurrent.futures
 from typing import Dict, List, Any, Union, Optional, Callable, Iterator
 from collections import defaultdict
-from bson.objectid import ObjectId as BSONObjectId
 from .utils import (
     apply_query_operators,
     apply_update_operators,

@@ -20,6 +20,8 @@ MainyDB is an ultra-fast, embedded MongoDB-like database in a single `.mdb` file
 pip install MainyDB
 ```
 
+La libreria è disponibile anche su PyPI: https://pypi.org/project/MainyDB/
+
 
 ```bash
 # Clone the repository
