@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -10,7 +9,5 @@ venv/
 *.egg-info/
 dist/
 build/
-# Specific to this project
 *.mdb
-# Web project specific
 web_project/__pycache__/
