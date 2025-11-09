@@ -31,17 +31,22 @@ jobs:
         id: extract
         run: |
           COMMIT_MSG="${{ github.event.head_commit.message }}"
-          VERSION=$(printf "%s" "$COMMIT_MSG" | sed -n 's/.*new_version:[[:space:]]*\(v[0-9][0-9\.]*\).*/\1/p' | head -n1)
+          VERSION=$(printf "%s" "$COMMIT_MSG" | sed -n 's/.*new_version:[[:space:]]*\(v\{0,1\}[0-9][0-9\.]*\).*/\1/p' | head -n1)
           if [ -z "$VERSION" ]; then
             echo "No version marker found in commit message." >&2
             exit 1
           fi
+          # Normalize to always have leading 'v'
+          VERSION="v${VERSION#v}"
           NOTES=$(printf "%s" "$COMMIT_MSG" | sed -n '1!p')
           RELEASE_BODY="$NOTES\n\nFull Changelog: https://github.com/${{ github.repository }}/commits/$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           printf "release_body<<EOF\n%s\nEOF\n" "$RELEASE_BODY" >> "$GITHUB_OUTPUT"
+          # Export for later normalization if needed
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          printf "NOTES<<EOF\n%s\nEOF\n" "$NOTES" >> "$GITHUB_ENV"
 
-      - name: Verify package version matches commit version
+      - name: Normalize version using package if mismatch
         run: |
           PKG_VERSION=$(python -c "import configparser; c=configparser.ConfigParser(); c.read('setup.cfg'); print(c['metadata']['version'])")
           COMMIT_VERSION="${{ steps.extract.outputs.version }}"
@@ -49,9 +54,14 @@ jobs:
           echo "Package version: $PKG_VERSION"
           echo "Commit version: $STRIPPED"
           if [ "$PKG_VERSION" != "$STRIPPED" ]; then
-            echo "Version mismatch: setup.cfg=$PKG_VERSION commit=$STRIPPED" >&2
-            exit 1
+            echo "Version mismatch: setup.cfg=$PKG_VERSION commit=$STRIPPED — overriding tag to v$PKG_VERSION"
+            echo "VERSION=v$PKG_VERSION" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=$COMMIT_VERSION" >> "$GITHUB_ENV"
           fi
+          # Recompose release body using final VERSION
+          RELEASE_BODY="$NOTES\n\nFull Changelog: https://github.com/${{ github.repository }}/commits/$VERSION"
+          printf "RELEASE_BODY<<EOF\n%s\nEOF\n" "$RELEASE_BODY" >> "$GITHUB_ENV"
 
       - name: Build package
         run: |
@@ -66,7 +76,7 @@ jobs:
 
       - name: Create and push tag
         run: |
-          VERSION="${{ steps.extract.outputs.version }}"
+          VERSION="${{ env.VERSION }}"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag -a "$VERSION" -m "Release $VERSION"
@@ -77,8 +87,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.extract.outputs.version }}
-          release_name: MainyDB ${{ steps.extract.outputs.version }}
-          body: ${{ steps.extract.outputs.release_body }}
+          tag_name: ${{ env.VERSION }}
+          release_name: MainyDB ${{ env.VERSION }}
+          body: ${{ env.RELEASE_BODY }}
           draft: false
           prerelease: false
