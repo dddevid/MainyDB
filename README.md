@@ -216,6 +216,26 @@ with open("retrieved_image.jpg", "wb") as f:
     f.write(image_data)
 ```
 
+### Direct Image Upload (file path)
+
+- Puoi caricare immagini passando direttamente una stringa di percorso file; MainyDB legge il file, lo salva in base64 e alla lettura restituisce `bytes`.
+- Estensioni supportate: `.png`, `.jpg`, `.jpeg`, `.webp`, `.tiff`, `.heic`, `.gif`.
+
+```python
+# Insert da percorso file (l'immagine viene memorizzata come base64 internamente)
+images = db.myapp.images
+res = images.insert_one({
+    "name": "logo",
+    "image": "./assets/logo.png"  # percorso verso un file immagine esistente
+})
+
+# Lettura: vengono restituiti bytes (non una stringa base64)
+logo_doc = images.find_one({"name": "logo"})
+logo_bytes = logo_doc["image"]
+with open("retrieved_logo.png", "wb") as f:
+    f.write(logo_bytes)
+```
+
 ## Thread Safety
 
 MainyDB is thread-safe and can be accessed from multiple threads:

@@ -1,4 +1,5 @@
 import re
+import os
 import base64
 import hashlib
 import datetime
@@ -6,13 +7,20 @@ import operator
 import io
 from typing import Dict, List, Any, Union, Optional, Callable
 from collections import defaultdict
+ALLOWED_IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.tiff', '.heic', '.gif'}
+
 def is_media_type(data):
     """Check if data is a media type that should be encoded"""
     if isinstance(data, bytes):
         return True
-    if isinstance(data, str) and data.startswith(('data:image/', 'data:video/')):
-        return True
+    if isinstance(data, str):
+        if data.startswith(('data:image/', 'data:video/')):
+            return True
+        ext = os.path.splitext(data)[1].lower()
+        if ext in ALLOWED_IMAGE_EXTS and os.path.isfile(data):
+            return True
     return False
+
 def encode_media(data):
     """Encode media data to base64 for storage"""
     if isinstance(data, bytes):
@@ -24,6 +32,19 @@ def encode_media(data):
             return data
         media_type = parts[0].replace('data:', '')
         encoded = parts[1]
+    elif isinstance(data, str):
+        ext = os.path.splitext(data)[1].lower()
+        if ext in ALLOWED_IMAGE_EXTS and os.path.isfile(data):
+            try:
+                with open(data, 'rb') as f:
+                    raw = f.read()
+                mt_ext = 'jpeg' if ext == '.jpg' else ext.lstrip('.')
+                media_type = f'image/{mt_ext}'
+                encoded = base64.b64encode(raw).decode('utf-8')
+            except OSError:
+                return data
+        else:
+            return data
     else:
         return data
     hash_key = hashlib.md5(encoded.encode('utf-8')).hexdigest()
@@ -43,7 +64,7 @@ def decode_media(encoded_data, cache=None):
         cached_data = cache.get(hash_key)
         if cached_data:
             return cached_data
-    if media_type == 'binary':
+    if media_type == 'binary' or (isinstance(media_type, str) and media_type.startswith('image/')):
         decoded = base64.b64decode(encoded)
     else:
         decoded = f"data:{media_type};base64,{encoded}"

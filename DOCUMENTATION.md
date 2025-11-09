@@ -529,6 +529,62 @@ with open("retrieved_image.jpg", "wb") as f:
     f.write(image_data)
 ```
 
+### Supporto Immagini
+
+MainyDB supporta l'upload e la lettura di immagini nei formati: `.png`, `.jpg`, `.jpeg`, `.webp`, `.tiff`, `.heic`, `.gif`. I dati binari vengono salvati come base64 e decodificati automaticamente in lettura.
+
+### Upload diretto di immagini (percorso file)
+
+Oltre ai bytes, puoi inserire il percorso del file immagine direttamente nel documento. In inserimento/aggiornamento MainyDB legge il file, lo converte in base64 e lo memorizza.
+
+```python
+# Inserimento tramite percorso file (upload diretto)
+images = db.my_app.images
+
+doc = {
+    "_id": "sample1",
+    "filename": "avatar.png",
+    "image": "./assets/avatar.png"  # percorso del file immagine
+}
+
+images.insert_one(doc)
+
+# Lettura: find_one decodifica subito in bytes
+stored = images.find_one({"_id": "sample1"})
+img_bytes = stored["image"]  # bytes dell'immagine
+
+with open("avatar_copy.png", "wb") as f:
+    f.write(img_bytes)
+
+# Lettura: find restituisce decoder lazy per i campi media
+cur = images.find({"_id": "sample1"})
+item = next(iter(cur))
+decoder = item["image"]  # funzione da chiamare per ottenere i bytes
+img_bytes_lazy = decoder()
+```
+
+### Comportamento di lettura: `find` vs `find_one`
+
+- `find_one` ritorna direttamente i bytes per i campi media.
+- `find` ritorna una funzione decoder per i campi media (lazy) da chiamare quando servono i bytes, per ridurre overhead di decodifica su grandi dataset.
+
+### Update e media
+
+Le operazioni `update_one` e `update_many` applicano automaticamente la codifica media:
+
+```python
+# Aggiornare con bytes
+new_bytes = b"\x89PNG..."  # bytes dell'immagine
+images.update_one({"_id": "sample1"}, {"$set": {"image": new_bytes}})
+
+# Aggiornare con percorso file
+images.update_many({"filename": {"$eq": "avatar.png"}}, {"$set": {"image": "./assets/avatar.webp"}})
+
+# Verifica lettura
+updated = images.find_one({"_id": "sample1"})
+assert isinstance(updated["image"], (bytes, bytearray))
+```
+
 ### Media Caching
 
 MainyDB automatically caches decoded media for 2 hours to improve performance when the same media is accessed multiple times.

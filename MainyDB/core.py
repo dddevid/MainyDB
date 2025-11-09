@@ -248,20 +248,24 @@ class Collection:
             documents = self._find_documents(query)
             if projection:
                 documents = self._apply_projection(documents, projection)
+            view_docs = []
             for doc in documents:
-                for key, value in doc.items():
+                view = doc.copy()
+                for key, value in list(view.items()):
                     if isinstance(value, dict) and value.get('__media_type__'):
-                        doc[key] = lambda k=key, v=value: decode_media(v, self.database.db.media_cache)
-            return Cursor(documents)
+                        view[key] = lambda k=key, v=value: decode_media(v, self.database.db.media_cache)
+                view_docs.append(view)
+            return Cursor(view_docs)
     def find_one(self, query=None, projection=None):
         with self.lock:
             documents = self._find_documents(query)
             if not documents:
                 return None
-            result = documents[0]
+            base = documents[0]
             if projection:
-                result = self._apply_projection([result], projection)[0]
-            for key, value in result.items():
+                base = self._apply_projection([base], projection)[0]
+            result = base.copy()
+            for key, value in list(result.items()):
                 if isinstance(value, dict) and value.get('__media_type__'):
                     result[key] = decode_media(value, self.database.db.media_cache)
             return result
@@ -274,7 +278,11 @@ class Collection:
                     new_doc = apply_update_operators({}, update)
                     return self.insert_one(new_doc)
                 return {'matched_count': 0, 'modified_count': 0}
-            self.documents[doc_index] = apply_update_operators(self.documents[doc_index], update)
+            updated = apply_update_operators(self.documents[doc_index], update)
+            for key, value in list(updated.items()):
+                if is_media_type(value):
+                    updated[key] = encode_media(value)
+            self.documents[doc_index] = updated
             for index_name in self.indexes:
                 self.indexes[index_name] = build_index(self.documents, self.indexes[index_name].keys())
             self._save_data()
@@ -287,7 +295,11 @@ class Collection:
                 new_doc = apply_update_operators({}, update)
                 return self.insert_one(new_doc)
             for idx in matching_docs:
-                self.documents[idx] = apply_update_operators(self.documents[idx], update)
+                updated = apply_update_operators(self.documents[idx], update)
+                for key, value in list(updated.items()):
+                    if is_media_type(value):
+                        updated[key] = encode_media(value)
+                self.documents[idx] = updated
             for index_name in self.indexes:
                 self.indexes[index_name] = build_index(self.documents, self.indexes[index_name].keys())
             self._save_data()

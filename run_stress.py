@@ -12,6 +12,7 @@ SCRIPTS = [
     'stress_concurrent_rw.py',
     'stress_mixed_operations.py',
     'stress_indexing.py',
+    'stress_image_ingest.py',
 ]
 
 
