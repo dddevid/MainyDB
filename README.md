@@ -263,13 +263,6 @@ for thread in threads:
     thread.join()
 ```
 
-## Examples
-
-See the `examples` directory for more detailed examples:
-
-- `basic_usage.py`: Basic CRUD operations
-- `advanced_usage.py`: Advanced queries, aggregations, and concurrency
-
 ## Stress Test
 
 Stress test scripts are available under `tests/stress`. Each script can be run directly:
