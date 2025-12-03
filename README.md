@@ -284,7 +284,6 @@ python tests/stress/stress_indexing.py
 Notes:
 - The scripts use a temporary database and do not modify existing files.
 - Outputs include summaries (time, ops/sec, counts) and basic correctness asserts.
-- Run the scripts from the project root (`e:\Progetti\MainyDB`).
 
 ## Author
 
