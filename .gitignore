@@ -11,3 +11,4 @@ dist/
 build/
 *.mdb
 web_project/__pycache__/
+.flake8

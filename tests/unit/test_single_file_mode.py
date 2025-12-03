@@ -15,12 +15,10 @@ class TestSingleFileMode(unittest.TestCase):
 
             mdb_path = os.path.join(tmpdir, 'mainydb.mdb')
             self.assertTrue(os.path.isfile(mdb_path), 'mainydb.mdb should exist')
-            # Ensure no .collection files anywhere in tmpdir
             found_collection = []
             for root, dirs, files in os.walk(tmpdir):
                 found_collection.extend([f for f in files if f.endswith('.collection')])
             self.assertEqual(found_collection, [], 'No .collection files should exist')
-            # Ensure no subdirectories created for databases in single-file mode
             top_level_dirs = [d for d in os.listdir(tmpdir) if os.path.isdir(os.path.join(tmpdir, d))]
             self.assertEqual(top_level_dirs, [], 'No database directories should be created')
 

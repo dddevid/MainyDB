@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import concurrent.futures
 import datetime
@@ -10,7 +9,7 @@ import threading
 import time
 import uuid
 from collections import defaultdict
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union
+from typing import Callable, Dict, Iterator, List, Optional
 
 from .utils import (
     apply_aggregation_pipeline,
@@ -270,7 +269,7 @@ class Collection:
             doc_copy = document.copy()
             if '_id' not in doc_copy:
                 doc_copy['_id'] = ObjectId()
-            # Apply encryption if configured
+
             if self.encryption_manager:
                 doc_copy = self.encryption_manager.encrypt_document(doc_copy)
             for key, value in doc_copy.items():
@@ -294,7 +293,7 @@ class Collection:
                 doc_copy = doc.copy()
                 if '_id' not in doc_copy:
                     doc_copy['_id'] = ObjectId()
-                # Apply encryption if configured
+
                 if self.encryption_manager:
                     doc_copy = self.encryption_manager.encrypt_document(doc_copy)
                 for key, value in doc_copy.items():
@@ -317,7 +316,7 @@ class Collection:
             view_docs = []
             for doc in documents:
                 view = doc.copy()
-                # Decrypt AES256 fields if configured
+
                 if self.encryption_manager:
                     view = self.encryption_manager.decrypt_document(view)
                 for key, value in list(view.items()):
@@ -337,7 +336,7 @@ class Collection:
             if projection:
                 base = self._apply_projection([base], projection)[0]
             result = base.copy()
-            # Decrypt AES256 fields if configured
+
             if self.encryption_manager:
                 result = self.encryption_manager.decrypt_document(result)
             for key, value in list(result.items()):
@@ -357,9 +356,9 @@ class Collection:
                     return self.insert_one(new_doc)
                 return {'matched_count': 0, 'modified_count': 0}
             updated = apply_update_operators(self.documents[doc_index], update)
-            # Apply encryption to updated fields if configured
+
             if self.encryption_manager and '$set' in update:
-                # Encrypt only the fields being set
+
                 encrypted_set = self.encryption_manager.encrypt_document(update['$set'])
                 for key, value in encrypted_set.items():
                     updated[key] = value
@@ -386,9 +385,9 @@ class Collection:
                 return self.insert_one(new_doc)
             for idx in matching_docs:
                 updated = apply_update_operators(self.documents[idx], update)
-                # Apply encryption to updated fields if configured
+
                 if self.encryption_manager and '$set' in update:
-                    # Encrypt only the fields being set
+
                     encrypted_set = self.encryption_manager.encrypt_document(update['$set'])
                     for key, value in encrypted_set.items():
                         updated[key] = value
@@ -690,7 +689,7 @@ class Database:
         if name in self.collections:
             return self.collections[name]
         file_path = os.path.join(self.path, f"{name}.collection")
-        # Use collection-level encryption_manager if provided, otherwise use database-level
+
         enc_mgr = encryption_manager or self.encryption_manager
         collection = Collection(self, name, file_path, options, enc_mgr)
         self.collections[name] = collection

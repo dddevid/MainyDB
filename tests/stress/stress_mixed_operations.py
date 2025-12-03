@@ -2,6 +2,8 @@ import time
 import random
 import tempfile
 from MainyDB.core import MainyDB
+
+
 def run_mixed_ops(iterations: int = 5000):
     """
     Esegue un mix di CRUD, proiezioni, skip/limit e aggregate su dataset casuale.
@@ -28,7 +30,8 @@ def run_mixed_ops(iterations: int = 5000):
             elif r < 0.85:
                 coll.delete_many({"category": random.choice(["A", "B"])})
             else:
-                docs = coll.find({"active": True}, projection={"_id": 1, "value": 1}).sort("value", 1).skip(10).limit(20).to_list()
+                docs = coll.find({"active": True}, projection={"_id": 1, "value": 1}
+                                 ).sort("value", 1).skip(10).limit(20).to_list()
                 if docs and random.random() < 0.1:
                     _ = coll.aggregate([
                         {"$match": {"active": True}},
@@ -40,5 +43,7 @@ def run_mixed_ops(iterations: int = 5000):
         print(f"[mixed_ops] iterations={iterations} duration={dur:.2f}s total_docs={total}")
         assert total >= 0
         mainy.close()
+
+
 if __name__ == "__main__":
     run_mixed_ops()

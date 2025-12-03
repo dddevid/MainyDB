@@ -4,6 +4,8 @@ import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from MainyDB.core import MainyDB
+
+
 def _writer(coll, stop_event, counters):
     try:
         while not stop_event.is_set():
@@ -21,6 +23,8 @@ def _writer(coll, stop_event, counters):
                 counters["update"] += 1
     except Exception as e:
         counters["errors"].append(("writer", str(e)))
+
+
 def _reader(coll, stop_event, counters):
     try:
         while not stop_event.is_set():
@@ -30,6 +34,8 @@ def _reader(coll, stop_event, counters):
             counters["read"] += 1
     except Exception as e:
         counters["errors"].append(("reader", str(e)))
+
+
 def run_concurrent_rw(duration_sec: int = 5, writers: int = 8, readers: int = 8):
     """
     Stress test di concorrenza R/W su una singola collection per N secondi.
@@ -61,5 +67,7 @@ def run_concurrent_rw(duration_sec: int = 5, writers: int = 8, readers: int = 8)
         assert not counters["errors"], f"Errori riscontrati: {counters['errors']}"
         assert total_docs >= counters["insert"], "Conteggio documenti inferiore agli insert registrati"
         mainy.close()
+
+
 if __name__ == "__main__":
     run_concurrent_rw()

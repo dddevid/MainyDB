@@ -28,7 +28,8 @@ def convert_ffmpeg(src: str, dest: str) -> bool:
     if not ffmpeg_available():
         return False
     try:
-        subprocess.run(['ffmpeg', '-y', '-i', src, dest], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        subprocess.run(['ffmpeg', '-y', '-i', src, dest], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, check=True)
         return True
     except Exception:
         return False
@@ -48,8 +49,12 @@ def main():
         url_map = {
             'jpg': ['https://placehold.co/640x360.jpg'],
             'png': ['https://placehold.co/320x200.png'],
-            'gif': ['https://placehold.co/200x120.gif', 'https://images.weserv.nl/?url=placehold.co/640x360.jpg&output=gif'],
-            'webp': ['https://placehold.co/640x360.webp', 'https://images.weserv.nl/?url=placehold.co/640x360.jpg&output=webp'],
+            'gif': [
+                'https://placehold.co/200x120.gif',
+                'https://images.weserv.nl/?url=placehold.co/640x360.jpg&output=gif'],
+            'webp': [
+                'https://placehold.co/640x360.webp',
+                'https://images.weserv.nl/?url=placehold.co/640x360.jpg&output=webp'],
         }
         for fmt, urls in url_map.items():
             dest = os.path.join(tmpdir, f'stress.{fmt}')
@@ -95,7 +100,8 @@ def main():
                 decoded_count += 1
 
         t2 = time.time()
-        print(f'Inseriti: {len(to_insert)} in {t1 - t0:.3f}s; lettura {len(samples)} in {t2 - t1:.3f}s; decodificati: {decoded_count}')
+        print(
+            f'Inseriti: {len(to_insert)} in {t1 - t0:.3f}s; lettura {len(samples)} in {t2 - t1:.3f}s; decodificati: {decoded_count}')
         sys.exit(0 if decoded_count == len(samples) else 1)
     finally:
         try:

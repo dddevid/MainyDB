@@ -4,7 +4,7 @@ import hashlib
 import operator
 import os
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional
 
 ALLOWED_IMAGE_EXTS = {
     '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.heic', '.gif'
@@ -524,7 +524,7 @@ def apply_aggregation_pipeline(documents, pipeline):
                                     and isinstance(length, int)
                                 ):
                                     new_doc[field] = string_val[
-                                        start : start + length
+                                        start: start + length
                                     ]
                 if '_id' not in stage_params or stage_params['_id'] == 1:
                     if '_id' in doc:
@@ -748,9 +748,10 @@ def apply_aggregation_pipeline(documents, pipeline):
                     else:
                         _set_nested_value(doc, field, value)
         elif stage_op == '$lookup':
-            from_collection = stage_params.get('from')
-            local_field = stage_params.get('localField')
-            foreign_field = stage_params.get('foreignField')
+            # Unused for now - placeholder for future implementation
+            _from_collection = stage_params.get('from')  # noqa: F841
+            _local_field = stage_params.get('localField')  # noqa: F841
+            _foreign_field = stage_params.get('foreignField')  # noqa: F841
             as_field = stage_params.get('as')
             for doc in result:
                 _set_nested_value(doc, as_field, [])

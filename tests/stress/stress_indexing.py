@@ -2,6 +2,8 @@ import time
 import random
 import tempfile
 from MainyDB.core import MainyDB
+
+
 def run_index_stress(num_docs: int = 15000):
     """
     Crea indici e lancia molte query mirate per verificare correttezza e performance.
@@ -31,5 +33,7 @@ def run_index_stress(num_docs: int = 15000):
         print(f"[index_stress] queries=10000 matches={match_count} duration={dur:.2f}s")
         assert idx1 in coll.indexes and idx2 in coll.indexes
         mainy.close()
+
+
 if __name__ == "__main__":
     run_index_stress()

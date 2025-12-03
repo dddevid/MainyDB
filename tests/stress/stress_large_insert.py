@@ -3,6 +3,8 @@ import time
 import random
 import tempfile
 from MainyDB.core import MainyDB
+
+
 def run_large_insert(num_docs: int = 20000, batch_size: int = 1000):
     """
     Inserisce una grande quantità di documenti e misura throughput e correttezza.
@@ -35,5 +37,7 @@ def run_large_insert(num_docs: int = 20000, batch_size: int = 1000):
         assert count == num_docs, f"Conteggio errato: atteso {num_docs}, ottenuto {count}"
         assert inserted == num_docs, f"Insert errato: atteso {num_docs}, ottenuto {inserted}"
         mainy.close()
+
+
 if __name__ == "__main__":
     run_large_insert()

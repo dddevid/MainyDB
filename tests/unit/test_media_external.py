@@ -30,7 +30,8 @@ def convert_ffmpeg(src: str, dest: str) -> bool:
     if not ffmpeg_available():
         return False
     try:
-        subprocess.run(['ffmpeg', '-y', '-i', src, dest], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        subprocess.run(['ffmpeg', '-y', '-i', src, dest], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, check=True)
         return True
     except Exception:
         return False
