@@ -15,11 +15,12 @@
 6. [Update Operators](#update-operators)
 7. [Aggregation Pipeline](#aggregation-pipeline)
 8. [Indexing](#indexing)
-9. [Media Handling](#media-handling)
-10. [Thread Safety](#thread-safety)
-11. [PyMongo Compatibility](#pymongo-compatibility)
-12. [Performance Tips](#performance-tips)
-13. [Examples](#examples)
+9. [String Encryption](#string-encryption)
+10. [Media Handling](#media-handling)
+11. [Thread Safety](#thread-safety)
+12. [PyMongo Compatibility](#pymongo-compatibility)
+13. [Performance Tips](#performance-tips)
+14. [Examples](#examples)
 
 ## Introduction
 
@@ -505,7 +506,243 @@ users.create_index([("city", 1), ("age", -1)])
   users.create_index([("email", 1)], name="email_index")
   ```
 
+## String Encryption
+
+MainyDB supports automatic encryption of string fields before storing them in the database. This feature provides two encryption methods:
+
+- **SHA256**: One-way hashing (ideal for passwords and data that should never be decrypted)
+- **AES256**: Reversible encryption (ideal for sensitive data like emails, SSN, credit cards)
+
+### Installation Requirements
+
+To use encryption features, install the required dependency:
+
+```bash
+pip install pycryptodome
+```
+
+### Creating an Encryption Configuration
+
+Use `create_encryption_config()` to define which fields should be encrypted:
+
+```python
+from MainyDB import create_encryption_config, EncryptionManager
+
+# Create encryption config
+config = create_encryption_config(
+    sha256_fields=["password"],  # One-way hash
+    aes256_fields=["email", "ssn"]  # Reversible encryption
+)
+```
+
+### Creating an Encryption Manager
+
+The `EncryptionManager` handles all encryption/decryption operations:
+
+```python
+# Create encryption manager with AES key
+encryption_manager = EncryptionManager(
+    config,
+    aes_key="your-secret-key-here"  # Required for AES256
+)
+```
+
+### AES Key Management
+
+The encryption manager supports three methods for providing the AES key (in priority order):
+
+1. **Explicit parameter** (recommended for production):
+   ```python
+   encryption_manager = EncryptionManager(config, aes_key="your-secret-key")
+   ```
+
+2. **Environment variable**:
+   ```bash
+   export MAINYDB_ENCRYPTION_KEY="your-secret-key"
+   ```
+   ```python
+   encryption_manager = EncryptionManager(config)  # Uses env variable
+   ```
+
+3. **Auto-generated** (displays warning):
+   ```python
+   encryption_manager = EncryptionManager(config)  # Generates random key
+   ```
+
+### Using Encryption with Database
+
+Apply encryption at the database level to encrypt all collections:
+
+```python
+from MainyDB import MainyDB
+from MainyDB.core import Database
+
+db = MainyDB("app.mdb")
+
+# Create encryption config
+config = create_encryption_config(
+    sha256_fields=["password"],
+    aes256_fields=["email"]
+)
+encryption_manager = EncryptionManager(config, aes_key="secret-key")
+
+# Create database with encryption
+users_db = Database(db, "users", encryption_manager=encryption_manager)
+users = users_db.create_collection("users")
+
+# Insert user - password and email are automatically encrypted
+users.insert_one({
+    "username": "john_doe",
+    "password": "secret123",  # Will be hashed with SHA256
+    "email": "john@example.com"  # Will be encrypted with AES256
+})
+```
+
+### Using Encryption with Collection
+
+Apply encryption at the collection level for fine-grained control:
+
+```python
+db = MainyDB("app.mdb")
+users_db = Database(db, "users")
+
+# Create encryption config for this collection only
+config = create_encryption_config(sha256_fields=["password"])
+encryption_manager = EncryptionManager(config, aes_key="secret-key")
+
+# Create collection with encryption
+users = users_db.create_collection("users", encryption_manager=encryption_manager)
+```
+
+### SHA256 Hashing (One-Way)
+
+SHA256 creates a one-way hash that cannot be decrypted. Perfect for passwords:
+
+```python
+config = create_encryption_config(sha256_fields=["password"])
+encryption_manager = EncryptionManager(config)
+
+users = users_db.create_collection("users", encryption_manager=encryption_manager)
+
+# Insert user with password
+users.insert_one({
+    "username": "alice",
+    "password": "mySecretPassword"
+})
+
+# Find user
+user = users.find_one({"username": "alice"})
+# user["password"] is now a dict: {"hash": "...", "salt": "...", "algorithm": "sha256"}
+
+# Verify password
+is_valid = encryption_manager.verify_sha256_field(
+    "password",
+    "mySecretPassword",  # User input
+    user["password"]  # Stored hash
+)
+# is_valid == True
+```
+
+### AES256 Encryption (Reversible)
+
+AES256 encrypts data that can be decrypted later. Perfect for sensitive data:
+
+```python
+config = create_encryption_config(aes256_fields=["email", "ssn"])
+encryption_manager = EncryptionManager(config, aes_key="secret-key")
+
+users = users_db.create_collection("users", encryption_manager=encryption_manager)
+
+# Insert user with sensitive data
+users.insert_one({
+    "username": "bob",
+    "email": "bob@example.com",
+    "ssn": "123-45-6789"
+})
+
+# Find user - AES256 fields are automatically decrypted
+user = users.find_one({"username": "bob"})
+print(user["email"])  # "bob@example.com" (decrypted automatically)
+print( user["ssn"])   # "123-45-6789" (decrypted automatically)
+```
+
+### Mixed Encryption
+
+Combine both SHA256 and AES256 for different fields:
+
+```python
+config = create_encryption_config(
+    sha256_fields=["password", "security_answer"],  # One-way
+    aes256_fields=["email", "phone", "address"]  # Reversible
+)
+encryption_manager = EncryptionManager(config, aes_key="secret-key")
+
+users = users_db.create_collection("users", encryption_manager=encryption_manager)
+
+users.insert_one({
+    "username": "charlie",
+    "password": "secret",  # SHA256 hashed
+    "email": "charlie@example.com",  # AES256 encrypted
+    "phone": "+1-555-0100",  # AES256 encrypted
+    "security_answer": "blue"  # SHA256 hashed
+})
+
+# Find returns decrypted AES256 fields, SHA256 fields remain hashed
+user = users.find_one({"username": "charlie"})
+print(user["email"])  # "charlie@example.com" (decrypted)
+print(user["password"])  # {"hash": "...", "salt": "...", "algorithm": "sha256"}
+```
+
+### Updating Encrypted Fields
+
+Encrypted fields are automatically re-encrypted when updated:
+
+```python
+# Update email (AES256 field)
+users.update_one(
+    {"username": "bob"},
+    {"$set": {"email": "bob.new@example.com"}}
+)
+
+# Update password (SHA256 field)
+users.update_one(
+    {"username": "alice"},
+    {"$set": {"password": "newPassword123"}}
+)
+```
+
+### Security Best Practices
+
+1. **Key Storage**: Never hardcode encryption keys in source code. Use environment variables or secure key management systems.
+
+2. **SHA256 for Passwords**: Always use SHA256 for passwords and other data that should never be decrypted.
+
+3. **AES256 for Sensitive Data**: Use AES256 for data you need to decrypt (emails, SSN, credit cards).
+
+4. **Key Rotation**: Periodically rotate your AES encryption keys and re-encrypt data.
+
+5. **Secure Key Generation**: Use strong, random keys:
+   ```python
+   import secrets
+   import base64
+   key = base64.b64encode(secrets.token_bytes(32)).decode('utf-8')
+   ```
+
+6. **Access Control**: Limit access to encryption keys and encrypted databases.
+
+### Performance Considerations
+
+- Encryption adds overhead to insert and update operations
+- Decryption adds overhead to find operations
+- SHA256 is faster than AES256 but cannot be reversed
+- Consider indexing non-encrypted fields for query performance
+
+### Thread Safety
+
+All encryption operations are thread-safe and can be used in multi-threaded environments.
+
 ## Media Handling
+
 
 MainyDB can store and retrieve binary data like images and videos. Binary data is automatically encoded as base64 when stored and decoded when retrieved.
 
