@@ -192,17 +192,23 @@ users.update_one({"_id": user_id}, {"$set": {"age": 31}})
 users.delete_one({"_id": user_id})
 ```
 
-### Cursor Class
+#### Bulk Operations
 
-Represents a database cursor for iterating over query results.
+The `bulk_write()` method allows you to perform multiple write operations in a single call, improving performance for batch operations.
 
-**Methods:**
+**Method:**
+- `bulk_write(operations, ordered=True)`: Executes multiple write operations
+  - `operations`: List of operation dictionaries
+  - `ordered`: If `True`, operations execute in order and stop on first error
+  - Returns: Dict with `inserted_count`, `matched_count`, `modified_count`, `deleted_count`, `upserted_count`, and `upserted_ids`
 
-- `sort(key_or_list, direction=None)`: Sorts the results
-- `skip(count)`: Skips the first `count` results
-- `limit(count)`: Limits the number of results
-- `count()`: Returns the count of documents in the result set
-- `distinct(field)`: Returns distinct values for a field in the result set
+**Supported Operations:**
+- `insert_one`: `{"insert_one": {"document": {...}}}`
+- `update_one`: `{"update_one": {"filter": {...}, "update": {...}, "upsert": False}}`
+- `update_many`: `{"update_many": {"filter": {...}, "update": {...}, "upsert": False}}`
+- `replace_one`: `{"replace_one": {"filter": {...}, "replacement": {...}, "upsert": False}}`
+- `delete_one`: `{"delete_one": {"filter": {...}}}`
+- `delete_many`: `{"delete_many": {"filter": {...}}}`
 
 **Example:**
 
@@ -210,40 +216,144 @@ Represents a database cursor for iterating over query results.
 db = MainyDB("my_database.mdb")
 users = db.my_app.users
 
-# Create a cursor
-cursor = users.find({"age": {"$gt": 25}})
+# Perform bulk operations
+result = users.bulk_write([
+    {"insert_one": {"document": {"name": "Alice", "age": 25}}},
+    {"insert_one": {"document": {"name": "Bob", "age": 30}}},
+    {"update_many": {"filter": {"age": {"$lt": 30}}, "update": {"$set": {"status": "young"}}}},
+    {"delete_one": {"filter": {"name": "OldUser"}}}
+])
 
-# Sort, skip, and limit
-results = cursor.sort("age", -1).skip(10).limit(5)
+print(f"Inserted: {result['inserted_count']}")
+print(f"Modified: {result['modified_count']}")
+print(f"Deleted: {result['deleted_count']}")
+```
+
+#### Collection Management
+
+**Methods:**
+
+- `drop()`: Deletes the entire collection and all its documents
+  - Returns: `True` on success
+
+- `rename(new_name)`: Renames the collection
+  - `new_name`: New name for the collection
+  - Returns: `True` on success
+
+- `stats()`: Returns collection statistics
+  - Returns: Dict with `ns`, `count`, `size`, `avgObjSize`, `storageSize`, `nindexes`, `indexNames`, and `ok`
+
+- `create_index(keys, **kwargs)`: Creates an index on specified fields
+  - `keys`: Field name (string), list of fields, or list of (field, direction) tuples
+  - Returns: Index name
+
+- `drop_index(index_name)`: Drops a specific index
+  - `index_name`: Name of the index to drop
+
+- `drop_indexes()`: Drops all indexes on the collection
+
+**Example:**
+
+```python
+db = MainyDB("my_database.mdb")
+users = db.my_app.users
+
+# Create indexes
+idx1 = users.create_index("email")
+idx2 = users.create_index([("age", 1), ("name", 1)])
+
+# Get collection statistics
+stats = users.stats()
+print(f"Documents: {stats['count']}")
+print(f"Storage: {stats['storageSize']} bytes")
+print(f"Indexes: {stats['indexNames']}")
+
+# Drop a specific index
+users.drop_index(idx1)
+
+# Rename collection
+users.rename("users_backup")
+
+# Drop collection
+users.drop()
+```
+
+### Cursor Class
+
+Represents a database cursor for iterating over query results. Cursors support method chaining for building complex queries.
+
+**Methods:**
+
+- `sort(key_or_list, direction=None)`: Sorts the results
+  - Single field: `sort("age", -1)` or `sort("age", 1)`
+  - Multiple fields: `sort([("age", -1), ("name", 1)])`
+- `skip(count)`: Skips the first `count` results
+- `limit(count)`: Limits the number of results
+- `count()`: Returns the count of documents in the result set
+- `distinct(field)`: Returns distinct values for a field in the result set
+- `to_list()`: Converts cursor results to a list
+- `__iter__()`: Allows iteration over the cursor
+- `next()` / `__next__()`: Returns the next document
+
+**Example:**
+
+```python
+db = MainyDB("my_database.mdb")
+users = db.my_app.users
+
+# Method chaining
+cursor = users.find({"age": {"$gt": 25}}).sort("age", -1).skip(10).limit(5)
 
 # Iterate over results
-for user in results:
+for user in cursor:
     print(user["name"])
+
+# Get all results as a list
+results = users.find({"status": "active"}).to_list()
+
+# Get count without iterating
+count = users.find({"age": {"$gt": 30}}).count()
+
+# Get distinct values from cursor results
+ages = users.find({"status": "active"}).distinct("age")
 ```
 
 ### ObjectId Class
 
-Represents a unique identifier for documents.
+Represents a unique identifier for documents. ObjectIds are automatically generated for documents that don't have an `_id` field.
 
 **Methods:**
 
+- `__init__(oid=None)`: Creates a new ObjectId
+  - If `oid` is None, generates a new UUID-based ID
+  - Otherwise, uses the provided ID
 - `__str__()`: Returns a string representation of the ObjectId
-- `__eq__()`: Compares two ObjectIds for equality
+- `__repr__()`: Returns a detailed representation: `ObjectId('...')`
+- `__eq__(other)`: Compares two ObjectIds for equality
+- `__hash__()`: Returns a hash value for use in sets and dicts
 
 **Example:**
 
 ```python
 from MainyDB import ObjectId
 
-# Create a new ObjectId
+# Create a new ObjectId (auto-generated)
 obj_id = ObjectId()
+print(obj_id)  # e.g., "5f8d7e6b-5e4d-3c2b-1a09-8765432109ab"
 
 # Create an ObjectId from a string
-obj_id = ObjectId("5f8d7e6b5e4d3c2b1a098765")
+obj_id = ObjectId("5f8d7e6b-5e4d-3c2b-1a09-8765")
+print(repr(obj_id))  # ObjectId('5f8d7e6b-5e4d-3c2b-1a09-8765')
 
 # Compare ObjectIds
 if obj_id1 == obj_id2:
     print("The ObjectIds are equal")
+
+# Use in sets (thanks to __hash__)
+unique_ids = {ObjectId(), ObjectId(), ObjectId()}
+
+# Use as dictionary keys
+id_map = {obj_id: "user_data"}
 ```
 
 ## Query Operators
@@ -891,3 +1001,257 @@ See the `examples` directory for more detailed examples:
 
 - `basic_usage.py`: Basic CRUD operations
 - `advanced_usage.py`: Advanced queries, aggregations, and concurrency
+- `encryption_example.py`: String encryption with SHA256 and AES256
+
+## Advanced Examples
+
+### Working with Nested Fields
+
+MainyDB supports querying and updating nested fields using dot notation:
+
+```python
+db = MainyDB("my_database.mdb")
+users = db.my_app.users
+
+# Insert document with nested structure
+users.insert_one({
+    "name": "Alice",
+    "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "zip": "10001",
+        "coordinates": {"lat": 40.7128, "lng": -74.0060}
+    },
+    "contacts": {
+        "email": "alice@example.com",
+        "phone": "+1-555-0123"
+    }
+})
+
+# Query nested fields
+user = users.find_one({"address.city": "New York"})
+user = users.find_one({"address.coordinates.lat": {"$gt": 40}})
+
+# Update nested fields
+users.update_one(
+    {"name": "Alice"},
+    {"$set": {
+        "address.street": "456 Park Ave",
+        "contacts.phone": "+1-555-9999"
+    }}
+)
+
+# Increment nested numeric fields
+users.update_one(
+    {"name": "Alice"},
+    {"$inc": {"address.coordinates.lat": 0.001}}
+)
+```
+
+### Complex Aggregation Pipelines
+
+```python
+db = MainyDB("my_database.mdb")
+sales = db.analytics.sales
+
+# Insert sample data
+sales.insert_many([
+    {"product": "Laptop", "category": "Electronics", "price": 1200, "quantity": 5},
+    {"product": "Mouse", "category": "Electronics", "price": 25, "quantity": 50},
+    {"product": "Desk", "category": "Furniture", "price": 300, "quantity": 10},
+    {"product": "Chair", "category": "Furniture", "price": 150, "quantity": 20}
+])
+
+# Complex aggregation: Calculate revenue by category, sorted by total revenue
+pipeline = [
+    {"$project": {
+        "category": 1,
+        "revenue": {"$multiply": ["$price", "$quantity"]}
+    }},
+    {"$group": {
+        "_id": "$category",
+        "total_revenue": {"$sum": "$revenue"},
+        "avg_revenue": {"$avg": "$revenue"},
+        "product_count": {"$sum": 1}
+    }},
+    {"$sort": {"total_revenue": -1}}
+]
+
+results = sales.aggregate(pipeline)
+for category_stats in results:
+    print(f"{category_stats['_id']}: ${category_stats['total_revenue']:.2f}")
+```
+
+### Bulk Operations for Performance
+
+```python
+db = MainyDB("my_database.mdb")
+users = db.my_app.users
+
+# Prepare bulk operations
+operations = []
+
+# Batch inserts
+for i in range(100):
+    operations.append({
+        "insert_one": {
+            "document": {"name": f"User{i}", "index": i}
+        }
+    })
+
+# Batch updates
+for i in range(50):
+    operations.append({
+        "update_one": {
+            "filter": {"index": i},
+            "update": {"$set": {"status": "active"}}
+        }
+    })
+
+# Batch deletes
+for i in range(90, 100):
+    operations.append({
+        "delete_one": {
+            "filter": {"index": i}
+        }
+    })
+
+# Execute all operations in one call
+result = users.bulk_write(operations)
+print(f"Inserted: {result['inserted_count']}, "
+      f"Modified: {result['modified_count']}, "
+      f"Deleted: {result['deleted_count']}")
+```
+
+### Index Management and Query Optimization
+
+```python
+db = MainyDB("my_database.mdb")
+products = db.shop.products
+
+# Insert test data
+products.insert_many([
+    {"name": "Product A", "category": "Electronics", "price": 100, "stock": 50},
+    {"name": "Product B", "category": "Books", "price": 20, "stock": 100},
+    # ... more products
+])
+
+# Create indexes for common queries
+email_idx = products.create_index("email")
+compound_idx = products.create_index([("category", 1), ("price", -1)])
+
+# Get collection statistics
+stats = products.stats()
+print(f"Total documents: {stats['count']}")
+print(f"Indexes: {stats['indexNames']}")
+print(f"Average document size: {stats['avgObjSize']:.2f} bytes")
+
+# Query with index (much faster for large collections)
+electronics = products.find({"category": "Electronics", "price": {"$lt": 200}})
+
+# Drop specific index when not needed
+products.drop_index(email_idx)
+
+# Drop all indexes
+products.drop_indexes()
+```
+
+### Practical Example: User Authentication System
+
+```python
+from MainyDB import MainyDB, create_encryption_config, EncryptionManager
+from MainyDB.core import Database
+
+# Setup database with encryption
+db = MainyDB("auth_system.mdb")
+
+# Configure encryption for sensitive fields
+config = create_encryption_config(
+    sha256_fields=["password"],  # Passwords are hashed (cannot be decrypted)
+    aes256_fields=["email", "phone"]  # PII is encrypted (can be decrypted)
+)
+encryption_manager = EncryptionManager(config, aes_key="your-secret-key-here")
+
+# Create database with encryption
+users_db = Database(db, "auth", encryption_manager=encryption_manager)
+users = users_db.create_collection("users")
+
+# Create indexes
+users.create_index("username", unique=True)
+
+# User registration
+def register_user(username, password, email):
+    try:
+        result = users.insert_one({
+            "username": username,
+            "password": password,  # Automatically hashed with SHA256
+            "email": email,  # Automatically encrypted with AES256
+            "created_at": datetime.datetime.now(),
+            "active": True
+        })
+        return {"success": True, "user_id": str(result['inserted_id'])}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# User login
+def login_user(username, password):
+    user = users.find_one({"username": username})
+    if not user:
+        return {"success": False, "error": "User not found"}
+    
+    # Verify password (compares hash)
+    is_valid = encryption_manager.verify_sha256_field(
+        "password", password, user["password"]
+    )
+    
+    if is_valid:
+        return {"success": True, "user": {
+            "username": user["username"],
+            "email": user["email"]  # Automatically decrypted
+        }}
+    else:
+        return {"success": False, "error": "Invalid password"}
+
+# Usage
+register_user("alice", "secure_password123", "alice@example.com")
+result = login_user("alice", "secure_password123")
+print(result)  # {"success": True, "user": {...}}
+```
+
+### Analytics and Reporting Example
+
+```python
+db = MainyDB("analytics.mdb")
+events = db.tracking.events
+
+# Track user events
+events.insert_many([
+    {"user_id": "user1", "event": "page_view", "page": "/home", "timestamp": datetime.datetime.now()},
+    {"user_id": "user1", "event": "click", "element": "buy_button", "timestamp": datetime.datetime.now()},
+    {"user_id": "user2", "event": "page_view", "page": "/product", "timestamp": datetime.datetime.now()},
+])
+
+# Create index for better query performance
+events.create_index([("user_id", 1), ("timestamp", -1)])
+
+# Generate daily report
+pipeline = [
+    {"$match": {"event": "page_view"}},
+    {"$group": {
+        "_id": "$page",
+        "views": {"$sum": 1},
+        "unique_users": {"$addToSet": "$user_id"}
+    }},
+    {"$project": {
+        "page": "$_id",
+        "views": 1,
+        "unique_users": {"$size": "$unique_users"}
+    }},
+    {"$sort": {"views": -1}},
+    {"$limit": 10}
+]
+
+top_pages = events.aggregate(pipeline).to_list()
+for page in top_pages:
+    print(f"{page['page']}: {page['views']} views from {page['unique_users']} users")
+```
