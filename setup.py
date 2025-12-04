@@ -22,5 +22,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "Pillow>=9.0.0",
+        "pycryptodome",
     ],
+
 )
